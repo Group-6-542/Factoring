@@ -1,0 +1,145 @@
+---
+title: "Final Project - Factoring"
+output: Group 6 - Jasmine Duong
+---
+
+This is a tutorial on factoring.
+
+First, we will read in our aggregated data. This one is a csv file pulled from github.
+
+```{r collecting, eval=TRUE}
+link='https://github.com/Group-6-542/EmilyRepository/raw/main/mergedGroupDataFinal.csv'
+
+#naming the file as finalData
+finalData=read.csv(link)
+```
+
+Next, we will take out a subset of the original data to look at. 
+```{r}
+subSet = finalData [,c(3:6)]
+```
+
+This returns the names of the columns that are in the subset
+```{r}
+names(subSet)
+```
+
+Next, you'll want to install the "lavaan" package. This package is used to estimate multivariate statistical models, which we will be doing later.
+```{r}
+install.packages("lavaan", dependencies = TRUE)
+```
+"Library" loads all the required add-ons for that specific package, in this case, lavaan.
+```{r}
+library(lavaan)
+```
+
+Here, we're creating a new variable "model", and using it to find our fit Confirmatory Factor Analysis (CFA). CFA uses a pre-determined factor structure that helps us understand properties of an unknown scale. Here, we're looking at the subset we created.
+#conducting a fit CFA factoring analysis
+```{r}
+model='dem=~ numberOfReturns + avgAGI + casesReported + numberOfPets'
+
+fit<-cfa(model, data = subSet,std.lv=TRUE)
+#estimates values for the variables in this model
+indexCFA=lavPredict(fit)
+```
+Here we are loading in the library "magrittr", which simply allows us to code in a more simple, straightforward, and easy fashion
+```{r}
+library(magrittr)
+```
+
+
+Here we are checking to see the range of the CFA index (not between 0 and 10)
+```{r}
+#this is an example of using magrittr! using %>% is much quicker than using a function to check for ranges
+indexCFA%>%head(10)
+```
+Based on the output above, we can see that the CFA index range is not between 0 and 10. We will be using the "scales" package to rescale the index range to be between 0 and 10.
+#adjusting the CFA index range to be between 0 and 10
+```{r}
+#loading in "scales" package
+library(scales)
+#rescale the CFA to be between 0 and 10
+indexCFANorm=rescale(as.vector(indexCFA), to = c(0, 10))
+```
+
+Now that we have our CFA index range, we will set it to a new variable
+```{r}
+finalData$Factoring=indexCFANorm
+```
+
+In order to create visual plots, we will be loading in the package "ggplot2"
+```{r}
+library(ggplot2)
+```
+
+Now its time to plot the data. We will use the "ggplot" function. Our arguments are our dataset, as well as the "aes", which stands for aesthetics mapping, which will create a mapped visual property.
+```{r}
+base=ggplot(data= finalData, aes(x=Factoring))
+#combines our initial plot with a histogram mapping function
+base+geom_histogram()
+```
+Here, we are plotting a scatterplot using different variables
+```{r}
+#plotting against numberOfReturns
+base=ggplot(data= finalData, aes(x=Factoring, y=numberOfReturns))
+base+geom_point()
+```
+```{r}
+#Scatter plot against avgAGI
+base=ggplot(data= finalData, aes(x=Factoring, y=avgAGI))
+base+geom_point()
+```
+```{r}
+#scatter plot using casesReported
+base=ggplot(data= finalData, aes(x=Factoring, y=casesReported))
+base+geom_point()
+```
+
+```{r}
+#scatterplot using numberOfPets
+base=ggplot(data= finalData, aes(x=Factoring, y=numberOfPets))
+base+geom_point()
+```
+Next, we want to estimate the latent variable model.
+```{r}
+#create new variable
+evalCFA1=parameterEstimates(fit, standardized =TRUE)
+```
+
+Here, we test the standard deviation and p-value for each column in the subset. Because we want to return the right hand side of the forumla, we use the 'rhs' function. 
+```{r}
+evalCFA1[evalCFA1$op=="=~",c('rhs','std.all','pvalue')]
+```
+
+```{r}
+evalCFA2=as.list(fitMeasures(fit))
+```
+
+This returns the chi-square, degrees of freedom, and p-value for the model (p-value of chi-square greater than 0.05)
+```{r}
+evalCFA2[c("chisq", "df", "pvalue")] 
+```
+Now you want to caluculatec the Tucker-Lewis, incremential fit index, which you want to be greater than 0.9
+```{r}
+evalCFA2$tli
+```
+
+Now you want to calculate the root mean square error. You want this value to be less than 0.05
+```{r}
+evalCFA2[c( 'rmsea.ci.lower','rmsea','rmsea.ci.upper')] 
+```
+To plot the SEM model, you want to install the "semPlot5" package
+```{r}
+#install.packages("semPlot5", dependencies = TRUE)
+```
+Remeber to load the semPlot package too!
+```{r}
+library(semPlot)
+```
+
+And now, we plot the diagram of the SEM model, general lineal model
+```{r}
+semPaths(fit, what='std', nCharNodes=10, sizeMan=8,
+         edge.label.cex=1.5, fade=T,residuals = F)
+```
+
